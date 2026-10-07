@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User
+from .models import User, Monitor, Snapshot
 from django.contrib.auth.password_validation import validate_password
 from rest_framework.validators import UniqueValidator
 
@@ -20,3 +20,15 @@ class UserSerializer(serializers.ModelSerializer):
         return User.objects.create_user(**validated_data)
 
 
+class MonitorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Monitor
+        fields = '__all__'
+        read_only_fields = ['id', 'user', 'last_checked', 'last_hash', 'status', 'created_at']
+
+
+class SnapshotSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Snapshot
+        fields = '__all__'
+        read_only_fields = ['id', 'monitor', 'content_hash', 'created_at']

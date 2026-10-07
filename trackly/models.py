@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class UserManager(BaseUserManager):
@@ -29,3 +30,24 @@ class User(AbstractUser):
     
     def __str__(self):
         return self.email
+
+
+class Monitor(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="monitor")
+    url = models.URLField()
+    check_interval = models.PositiveSmallIntegerField(default=60, validators=[MinValueValidator(1), MaxValueValidator(10080)]) # from 10 min to 7 days
+    last_check = models.DateTimeField(auto_now=True, null=True, blank=True)
+    last_hash = models.CharField(max_length=64, blank=True)
+    status = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class Snapshot(models.Model):
+    monitor = models.ForeignKey(
+        Monitor,
+        on_delete=models.CASCADE,
+        related_name="snapshots"
+    )
+    content = models.TextField()
+    content_hash = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
