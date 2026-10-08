@@ -3,3 +3,5 @@ djangorestframework-simplejwt
 psycopg[binary]
 celery
 redis
+requests
+bs4

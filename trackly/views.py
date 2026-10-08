@@ -2,13 +2,16 @@ from django.shortcuts import render
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from .serializers import UserSerializer, MonitorSerializer, SnapshotSerializer
 from .common.throttles import *
 from rest_framework.response import Response
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import User, Monitor
+from .models import User, Monitor, Snapshot
+from .services.scraper import Scraper
+from .services.hash import generate_hash
 
 
 class RegisterView(APIView):
@@ -94,15 +97,41 @@ class MonitorView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        scraper = Scraper()
         serializer = MonitorSerializer(data=request.data)
+
         if serializer.is_valid():
             url = serializer.validated_data["url"]
-            if not Monitor.objects.filter(url=url).exists():
-                serializer.save(user=request.user)
+            if not Monitor.objects.filter(
+                user=request.user, 
+                url=url
+            ).exists():
+                result = scraper.validate_url(url)
+                print(result)
+                if result['valid']:
+                    content = result["content"]
+                    content_hash = generate_hash(content)
+
+                    monitor = serializer.save(
+                        user=request.user,
+                        last_hash=content_hash
+                    )
+
+                    Snapshot.objects.create(
+                        monitor=monitor,
+                        content=content,
+                        content_hash=content_hash
+                    )
+
+                    return Response(
+                        MonitorSerializer(monitor).data,
+                        status=status.HTTP_201_CREATED
+                    )
                 return Response(
-                    serializer.data,
-                    status=status.HTTP_201_CREATED
+                    {"message":"This url is invalid to track please try another url."},
+                    status=status.HTTP_400_BAD_REQUEST
                 )
+
             return Response(
                 {"message":"This url is already exists."},
                 status=status.HTTP_400_BAD_REQUEST
@@ -125,7 +154,11 @@ class MonitorDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
-        monitor = Monitor.objects.get(user=request.user, pk=pk)
+        monitor = get_object_or_404(
+                    Monitor,
+                    user=request.user,
+                    pk=pk
+                )
         serializer = MonitorSerializer(monitor)
         return Response(
             serializer.data,
@@ -133,22 +166,54 @@ class MonitorDetailView(APIView):
         )
     
     def patch(self, request, pk):
-        monitor = Monitor.objects.get(user=request.user, pk=pk)
+        monitor = get_object_or_404(
+            Monitor,
+            user=request.user,
+            pk=pk
+        )
 
-        if not monitor:
-            return Response(
-                {"detail": "Monitor not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        scraper = Scraper()
 
         serializer = MonitorSerializer(
             monitor,
             data=request.data,
             partial=True
         )
+
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
+            url = serializer.validated_data.get("url")
+
+            if url:
+                result = scraper.validate_url(url)
+
+                if not result["valid"]:
+                    return Response(
+                        {
+                            "message": "This url is invalid to track. Please try another url."
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                content = result["content"]
+                content_hash = generate_hash(content)
+
+                monitor = serializer.save(
+                    last_hash=content_hash
+                )
+
+                Snapshot.objects.create(
+                    monitor=monitor,
+                    content=content,
+                    content_hash=content_hash
+                )
+
+            else:
+                monitor = serializer.save()
+
+            return Response(
+                MonitorSerializer(monitor).data,
+                status=status.HTTP_200_OK
+            )
 
         return Response(
             serializer.errors,
@@ -156,14 +221,12 @@ class MonitorDetailView(APIView):
         )
 
     def delete(self, request, pk):
-        monitor = Monitor.objects.get(user=request.user, pk=pk)
-        
-        if not monitor:
-            return Response(
-                {"detail": "Monitor not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
+        monitor = get_object_or_404(
+                    Monitor,
+                    user=request.user,
+                    pk=pk
+                )
+                
         monitor.delete()
 
         return Response(
@@ -175,16 +238,11 @@ class SnapshotView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
-        try:
-            monitor = Monitor.objects.get(
-                pk=pk,
-                user=request.user
-            )
-        except Monitor.DoesNotExist:
-            return Response(
-                {"detail": "Monitor not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        monitor = get_object_or_404(
+            Monitor,
+            pk=pk,
+            user=request.user
+        )
 
         snapshots = monitor.snapshots.all().order_by('-created_at')
         serializer = SnapshotSerializer(snapshots, many=True)

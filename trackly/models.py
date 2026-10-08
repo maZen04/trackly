@@ -33,10 +33,10 @@ class User(AbstractUser):
 
 
 class Monitor(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="monitor")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="monitors")
     url = models.URLField()
     check_interval = models.PositiveSmallIntegerField(default=60, validators=[MinValueValidator(1), MaxValueValidator(10080)]) # from 10 min to 7 days
-    last_check = models.DateTimeField(auto_now=True, null=True, blank=True)
+    last_check = models.DateTimeField(null=True, blank=True)
     last_hash = models.CharField(max_length=64, blank=True)
     status = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
