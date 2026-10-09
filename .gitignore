@@ -22,3 +22,10 @@
 # OS
 .DS_Store
 Thumbs.db
+
+# Node / frontend
+**/node_modules/
+**/dist/
+
+# Celery beat (generated files)
+**/celerybeat-schedule*
