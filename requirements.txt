@@ -1,9 +1,0 @@
-djangorestframework
-djangorestframework-simplejwt
-psycopg[binary]
-celery
-redis
-requests
-bs4
-django-celery-beat
-"django-push-notifications[WP]"
