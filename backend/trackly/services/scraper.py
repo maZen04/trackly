@@ -159,6 +159,7 @@ class Scraper:
             "prevent automated spam",
             "testing whether you are a human visitor",
             "support id",
+            "captcha",
         )
 
         return any(

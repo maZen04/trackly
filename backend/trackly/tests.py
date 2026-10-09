@@ -6,6 +6,7 @@ from rest_framework.test import APITestCase
 from .views import RegisterView, LoginView
 
 
+
 class AuthTests(APITestCase):
     def setUp(self):
         # run before each one of the tests

@@ -6,3 +6,5 @@ redis
 requests
 bs4
 django-celery-beat
+pytest
+pytest-mock
