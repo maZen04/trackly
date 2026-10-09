@@ -12,6 +12,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User, Monitor, Snapshot
 from .services.scraper import Scraper
 from .services.hash import generate_hash
+from .tasks import check_url
+import time
+from django.utils import timezone
 
 
 class RegisterView(APIView):
@@ -107,14 +110,14 @@ class MonitorView(APIView):
                 url=url
             ).exists():
                 result = scraper.validate_url(url)
-                print(result)
                 if result['valid']:
                     content = result["content"]
                     content_hash = generate_hash(content)
 
                     monitor = serializer.save(
                         user=request.user,
-                        last_hash=content_hash
+                        last_hash=content_hash,
+                        last_check=timezone.now()
                     )
 
                     Snapshot.objects.create(
@@ -248,3 +251,14 @@ class SnapshotView(APIView):
         serializer = SnapshotSerializer(snapshots, many=True)
 
         return Response(serializer.data)
+
+
+# class test_task(APIView):
+    
+#     def get(self, request):
+#         # call celery task
+#         # the delay not time but the variable
+#         check_url.delay()
+#         return Response(
+#             {"message":"Hello"}
+#         )
