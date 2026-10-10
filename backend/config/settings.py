@@ -51,9 +51,11 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'trackly',
     'django_celery_beat',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -184,3 +186,9 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(minute="*"),
     },
 }
+
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
