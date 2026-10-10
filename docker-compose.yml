@@ -1,0 +1,48 @@
+
+services:
+  db:
+    image: postgres:16
+    env_file: ./backend/.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+
+  backend:
+    build: ./backend
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    command: sh -c "python manage.py migrate && gunicorn config.wsgi:application --bind 0.0.0.0:8000"
+
+  celery_worker:
+    build: ./backend
+    env_file:
+      - ./backend/.env
+    command: celery -A config worker --loglevel=info --pool=solo
+    depends_on:
+      - db
+      - redis
+
+  celery_beat:
+    build: ./backend
+    env_file:
+      - ./backend/.env
+    command: celery -A config beat --loglevel=info
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  postgres_data:
