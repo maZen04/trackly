@@ -10,3 +10,4 @@ pytest
 pytest-mock
 gunicorn
 python-dotenv
+django-cors-headers
