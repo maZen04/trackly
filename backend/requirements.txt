@@ -9,4 +9,3 @@ django-celery-beat
 pytest
 pytest-mock
 gunicorn
-python-dotenv
